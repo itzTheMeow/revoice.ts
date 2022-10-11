@@ -1,8 +1,9 @@
 {
-  "name": "revoice.js",
-  "version": "0.1.734",
-  "description": "A voice module for Revolt",
-  "main": "index.js",
+  "name": "revoice.ts",
+  "version": "0.0.1",
+  "description": "Typescript typings for revolt.js",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified. For tests see experimental branch.\" && exit 1"
   },
@@ -16,26 +17,23 @@
     "voice channels"
   ],
   "files": [
-    "Media.js",
-    "Revoice.js",
-    "Signaling.js",
-    "User.js"
+    "dist"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/ShadowLp174/revoice.js"
+    "url": "https://github.com/itzTheMeow/revoice.ts"
   },
-  "homepage": "https://github.com/ShadowLp174/revoice.js",
+  "homepage": "https://github.com/itzTheMeow/revoice.ts",
   "bugs": {
-    "url": "https://github.com/ShadowLp174/revoice.js/issues",
-    "email": "shadowlp174@gmail.com"
+    "url": "https://github.com/itzTheMeow/revoice.ts/issues",
+    "email": "me@itsmeow.cat"
   },
-  "author": "ShadowLp174",
+  "author": "Meow",
   "license": "MIT",
   "dependencies": {
-    "ffmpeg-static": "^5.0.2",
+    "ffmpeg-static": "^5.1.0",
     "msc-node": "^0.0.10",
-    "revolt-api": "^0.5.5",
-    "ws": "^8.8.1"
+    "revolt-api": "^0.5.5-4",
+    "ws": "^8.9.0"
   }
 }
