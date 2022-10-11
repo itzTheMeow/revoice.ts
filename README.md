@@ -1,3 +1,9 @@
+# Revoice.ts - TypeScript typings for Revoice.js
+
+This is a direct port of Revoice.js
+
+The only feature added is a `customArgs` argument on the constructor for custom FFMPEG args.
+
 # Revoice.js - A Voice Module for Revolt
 
 This package is still in developement and lacks many features.
@@ -10,12 +16,12 @@ Vortex are the voice servers behind revolt and they are currently being rewritte
 
 **TODO**:
 
-- [X] Play/Pause for the media class (help apreciated ;))
-- [X] Non-voice events like UserJoined and roominfo
+- [x] Play/Pause for the media class (help apreciated ;))
+- [x] Non-voice events like UserJoined and roominfo
 - [ ] Audio reception
 - [ ] Error Handling; Right now, you have to take care of things like stopping the music if you start to play another song while one is playing
 
-*Disclamer: I might have forgotten some things on the list and thus it might be extended. Feel free to open issues to suggest new features :)*
+_Disclamer: I might have forgotten some things on the list and thus it might be extended. Feel free to open issues to suggest new features :)_
 
 ## Installation
 
@@ -70,7 +76,7 @@ connection.on("join", () => {
 
 - **`on(event, callback)`**: Equally to EventEmitter.on, for supported events refer to: [The Events section](#Events)
 - **`once(event, callback)`**: Equally to EventEmitter.once, refer to `on()`
-- **`join(channelId)`**: Connect to a voice channel;  `channelId` typeof `String`
+- **`join(channelId)`**: Connect to a voice channel; `channelId` typeof `String`
 - **`getVoiceConnection(channelId)`**: Returns the voice connection to the given channel; Params: `channelId` typeof `String`
 
 ### VoiceConnection

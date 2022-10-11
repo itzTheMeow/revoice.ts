@@ -1,39 +1,39 @@
-const EventEmitter = require("events");
-const { WebSocket } = require("ws");
-const User = require("./User.js");
+import EventEmitter from "events";
+import { RtpCapabilities } from "msc-node/lib/RtpParameters";
+import { API } from "revolt-api";
+import { WebSocket } from "ws";
+import User from "./User.js";
+import { VortexPacketType } from "./VortexTypes.js";
 
-class Signaling {
-  constructor(apiClient, channelId, reconnectTimeout=3000) {
-    this.client = apiClient;
-    this.channelId = channelId;
-    this.reconnectTimeout = reconnectTimeout;
+export default class Signaling {
+  public eventemitter = new EventEmitter();
+  public currId = -1;
+  public reconnecting = false;
+  public users: User[] = [];
+  public roomEmpty = null;
+  public ws: WebSocket;
 
-    this.eventemitter = new EventEmitter();
-    this.currId = -1;
-    this.reconnecting = false;
-
-    this.users = [];
-    this.roomEmpty = null;
-
+  constructor(public client: API, public channelId?: string, public reconnectTimeout = 3000) {
     return this;
   }
-  emit(event, cb) {
+  emit(event: string, cb?: any) {
     return this.eventemitter.emit(event, cb);
   }
-  on(event, cb) {
-    return this.eventemitter.on(event,  cb);
+  on(event: string, cb: any) {
+    return this.eventemitter.on(event, cb);
   }
-  once(event, cb) {
-    return this.eventemitter.once(event,  cb);
+  once(event: string, cb: any) {
+    return this.eventemitter.once(event, cb);
   }
 
-  authenticate() { // start the authentication and join flow
-    this.client.post("/channels/" + this.channelId + "/join_call").then(data => {
+  authenticate() {
+    // start the authentication and join flow
+    this.client.post(`/channels/${this.channelId}/join_call`).then((data: { token: string }) => {
       this.emit("token", data);
       this.initWebSocket(data);
     });
   }
-  connect(channel) {
+  connect(channel: string) {
     if (this.ws) this.disconnect();
     this.channelId = channel;
     this.authenticate();
@@ -47,14 +47,18 @@ class Signaling {
     this.connect(this.channelId);
   }
 
-  initWebSocket(data) {
+  initWebSocket(data: { token: string }) {
     this.ws = new WebSocket("wss://vortex.revolt.chat"); // might need to whitelist this in your antivirus
     this.ws.on("open", () => {
       // Send Authentication when the socket is ready
-      const msg = JSON.stringify({ id: ++this.currId, type: "Authenticate", data: {
-        token: data.token,
-        roomId: this.channelId
-      }});
+      const msg = JSON.stringify({
+        id: ++this.currId,
+        type: "Authenticate",
+        data: {
+          token: data.token,
+          roomId: this.channelId,
+        },
+      });
       this.ws.send(msg);
     });
     this.ws.on("close", (e) => {
@@ -68,20 +72,24 @@ class Signaling {
     this.ws.on("error", (e) => {
       console.log("Signaling error: ", e);
     });
-    this.ws.on("message", (msg) => {
+    this.ws.on("message", (msg: Buffer) => {
       const data = JSON.parse(Buffer.from(msg).toString()); // convert the received buffer to an object
       this.processWS(data);
     });
   }
-  processWS(data) { // data == parsed websocket message
-    switch(data.type) {
+  processWS(data: {
+    type: VortexPacketType;
+    data?: { id?: string; rtpCapabilities?: RtpCapabilities };
+  }) {
+    // data == parsed websocket message
+    switch (data.type) {
       case "InitializeTransports":
-        if (!this.reconnecting)  this.eventemitter.emit("initTransports", data);
+        if (!this.reconnecting) this.eventemitter.emit("initTransports", data);
         this.fetchRoomInfo().then(() => {
-          this.roomEmpty = (this.users.length == 1);
+          this.roomEmpty = this.users.length == 1;
           this.emit("roomfetched");
         });
-      break;
+        break;
       case "Authenticate":
         // continue in signaling process
         if (!this.reconnecting) this.eventemitter.emit("authenticate", data);
@@ -90,20 +98,20 @@ class Signaling {
           type: "InitializeTransports",
           data: {
             mode: "SplitWebRTC",
-            rtpCapabilities:  data.data.rtpCapabilities
-          }
+            rtpCapabilities: data.data.rtpCapabilities,
+          },
         };
         this.ws.send(JSON.stringify(request));
-      break;
+        break;
       case "ConnectTransport":
-        if (!this.reconnecting)  this.eventemitter.emit("ConnectTransport", data);
-      break;
+        if (!this.reconnecting) this.eventemitter.emit("ConnectTransport", data);
+        break;
       case "StartProduce":
         this.eventemitter.emit("StartProduce", data);
-      break;
+        break;
       case "StopProduce":
         this.eventemitter.emit("StopProduce", data);
-      break;
+        break;
       case "UserJoined":
         const user = new User(data.data.id, this.client);
         user.connected = true;
@@ -112,35 +120,36 @@ class Signaling {
           this.addUser(user);
           this.emit("userjoin", user);
         });
-      break;
+        break;
       case "RoomInfo":
         this.emit("roominfo", data);
-      break;
+        break;
       case "UserLeft":
         const id = data.data.id;
         const removed = this.removeUser(id);
-        this.roomEmpty = (this.users.length == 1);
+        this.roomEmpty = this.users.length == 1;
         this.emit("userleave", removed);
       default:
         // events like startProduce or UserJoined; will be implemented later
         this.eventemitter.emit("data", data);
         // console.log("(yet) Unimplemented case: ", data);
-      break;
+        break;
     }
   }
-  addUser(user) {
+  addUser(user: User) {
     if (!user) throw "User cannot be null! [Signaling.addUser(user)]";
     this.users.push(user);
   }
-  removeUser(id) {
-    const idx = this.users.findIndex(el => el.id == id);
+  removeUser(id: string) {
+    const idx = this.users.findIndex((el) => el.id == id);
     if (idx == -1) return;
     const removed = this.users[idx];
     this.users.splice(idx, 1);
     return removed;
   }
-  isConnected(userId) { // check wether a user is in the voice channel
-    const idx = this.users.findIndex(el => el.id == userId);
+  isConnected(userId: string) {
+    // check wether a user is in the voice channel
+    const idx = this.users.findIndex((el) => el.id == userId);
     if (idx == -1) return false;
     return true;
   }
@@ -148,80 +157,80 @@ class Signaling {
     return new Promise((res) => {
       const request = {
         id: ++this.currId,
-        type: "RoomInfo"
-      }
+        type: "RoomInfo",
+      };
       this.ws.send(JSON.stringify(request));
-      this.on("roominfo", (data) => {
+      this.on("roominfo", (data: { data: { users: { [key: string]: { audio: boolean } } } }) => {
         const users = data.data.users;
         //if ((Object.keys(users).length - 1) == 0) return res();
         let promises = [];
         for (let userId in users) {
-          let user = new User(userId, this.client);
+          const user = new User(userId, this.client);
           user.connected = true;
           user.connectedTo = this.channelId;
           promises.push(this.eventToPromise(user, "ready"));
-          user.muted = 1 - users[userId].audio;
+          user.muted = !users[userId].audio;
           this.addUser(user);
         }
         Promise.all(promises).then(res);
       });
     });
   }
-  eventToPromise(emitter, event) {
-    return new Promise(res => {
-      emitter.once(event, (data) => {
+  eventToPromise(emitter: EventEmitter | User, event: string) {
+    return new Promise((res) => {
+      emitter.once(event, (data: any) => {
         res(data);
       });
     });
   }
-  connectTransport(id, params) {
+  connectTransport(id: string, params) {
     return new Promise((res, rej) => {
       const request = {
         id: ++this.currId,
         type: "ConnectTransport",
         data: {
           id: id,
-          dtlsParameters: params
-        }
+          dtlsParameters: params,
+        },
       };
       this.ws.send(JSON.stringify(request));
-      this.on("ConnectTransport", (data) => {
+      this.on("ConnectTransport", (data: { id: number; data: {} }) => {
         if (data.id !== request.id) return;
         res(data.data);
-      })
+      });
     });
   }
-  startProduce(type, params) {
+  startProduce(type: "audio", params) {
     return new Promise((res, rej) => {
       const request = {
         id: ++this.currId,
         type: "StartProduce",
         data: {
           type: type,
-          rtpParameters: params
-        }
+          rtpParameters: params,
+        },
       };
       this.ws.send(JSON.stringify(request));
-      this.on("StartProduce", (data) => {
+      this.on("StartProduce", (data: { id: number; data: { producerId: string } }) => {
         if (data.id !== request.id) return;
         res(data.data.producerId);
-      })
+      });
     });
   }
-  stopProduce(type="audio") {
+  stopProduce(type = "audio") {
     return new Promise((res) => {
       const request = {
         id: ++this.currId,
         type: "StopProduce",
         data: {
-          type: type
-        }
+          type: type,
+        },
       };
       this.ws.send(JSON.stringify(request));
-      this.on("StopProduce", (data) => {
+      this.on("StopProduce", (data: { id: number }) => {
         if (data.id !== request.id) return;
-        res();
-      })
+        res(void 0);
+      });
     });
   }
 }

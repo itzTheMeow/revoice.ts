@@ -1,36 +1,45 @@
-const { API } = require("revolt-api");
-const Signaling = require("./Signaling.js");
-const EventEmitter = require("events");
-const { Device, useSdesMid, RTCRtpCodecParameters } = require("msc-node");
+import { API, Channel } from "revolt-api";
+import Signaling from "./Signaling";
+import EventEmitter from "events";
+import { Device, useSdesMid, RTCRtpCodecParameters } from "msc-node";
+import { RtpCapabilities } from "msc-node/lib/RtpParameters";
+import { RevoiceState } from "./VortexTypes";
+import { Media } from "./Media";
+import { Producer } from "msc-node/lib/Producer";
+import { Transport } from "msc-node/lib/Transport";
 
-class VoiceConnection {
-  constructor(channelId, voice, opts) {
-    this.voice = voice;
-    this.channelId = channelId;
+export class VoiceConnection {
+  public eventemitter = new EventEmitter();
+  public device: Device;
+  public signaling: Signaling;
+  public leaveTimeout: boolean;
+  public media = null;
+  public state: RevoiceState;
+  public producer: Producer;
+  public leaving: NodeJS.Timeout;
+  public sendTransport: Transport;
 
-    this.device = opts.device;
-    this.signaling = opts.signaling;
+  constructor(
+    public channelId: string,
+    public voice: Revoice,
+    opts: { device: Device; signaling: Signaling; leaveOnEmpty: boolean }
+  ) {
     this.setupSignaling();
     this.signaling.connect(channelId);
 
     this.leaveTimeout = opts.leaveOnEmpty;
-    this.leaving; // the actual timeout cancellable
-
-    this.media = null;
-
-    this.eventemitter = new EventEmitter();
   }
-  on(event, cb) {
+  on(event: string, cb: any) {
     return this.eventemitter.on(event, cb);
   }
-  once(event, cb) {
+  once(event: string, cb: any) {
     return this.eventemitter.once(event, cb);
   }
-  emit(event, data) {
+  emit(event: string, data?: any) {
     return this.eventemitter.emit(event, data);
   }
 
-  updateState(state) {
+  updateState(state: RevoiceState) {
     this.state = state;
     this.emit("state", state);
   }
@@ -38,14 +47,14 @@ class VoiceConnection {
   getUsers() {
     return this.signaling.users;
   }
-  isConnected(userId) {
+  isConnected(userId: string) {
     return this.signaling.isConnected(userId);
   }
 
   setupSignaling() {
     const signaling = this.signaling;
     signaling.on("token", () => {});
-    signaling.on("authenticate", (data) => {
+    signaling.on("authenticate", (data: { data: { rtpCapabilities: RtpCapabilities } }) => {
       this.device.load({ routerRtpCapabilities: data.data.rtpCapabilities });
     });
     signaling.on("initTransports", (data) => {
@@ -83,16 +92,19 @@ class VoiceConnection {
       this.leaving = null;
     }
     if (!(signaling.roomEmpty && this.leaveTimeout)) return;
-    this.leaving = setTimeout(() => {
-      this.once("leave", () => {
-        this.destroy();
-        this.emit("autoleave");
-      });
-      this.leave();
-    }, this.leaveTimeout * 1000);
+    this.leaving = setTimeout(
+      () => {
+        this.once("leave", () => {
+          this.destroy();
+          this.emit("autoleave");
+        });
+        this.leave();
+      },
+      this.leaveTimeout ? 1000 : 0
+    );
   }
   initTransports(data) {
-    this.sendTransport = this.device.createSendTransport({...data.data.sendTransport});
+    this.sendTransport = this.device.createSendTransport({ ...data.data.sendTransport });
     this.sendTransport.on("connect", ({ dtlsParameters }, callback) => {
       this.signaling.connectTransport(this.sendTransport.id, dtlsParameters).then(callback);
     });
@@ -102,26 +114,26 @@ class VoiceConnection {
       });
     });
 
-    this.updateState(Revoice.State.IDLE);
+    this.updateState(RevoiceState.IDLE);
     this.emit("join");
   }
-  async play(media) {
-    this.updateState(((!media.isMediaPlayer) ? Revoice.State.UNKNOWN : Revoice.State.BUFFERING));
+  async play(media: Media) {
+    this.updateState(!media.isMediaPlayer ? RevoiceState.UNKNOWN : RevoiceState.BUFFERING);
 
     media.on("finish", () => {
       this.signaling.stopProduce();
       this.producer.close();
-      this.updateState(Revoice.State.IDLE);
+      this.updateState(RevoiceState.IDLE);
     });
-    media.on("buffer", (producer) => {
+    media.on("buffer", (producer: Producer) => {
       this.producer = producer;
-      this.updateState(Revoice.State.BUFFERING);
+      this.updateState(RevoiceState.BUFFERING);
     });
     media.on("start", () => {
-      this.updateState(Revoice.State.PLAYING);
+      this.updateState(RevoiceState.PLAYING);
     });
     media.on("pause", () => {
-      this.updateState(Revoice.State.PAUSED);
+      this.updateState(RevoiceState.PAUSED);
     });
     this.media = media;
     this.media.transport = this.sendTransport;
@@ -131,7 +143,7 @@ class VoiceConnection {
     return new Promise((res) => {
       this.sendTransport.once("close", () => {
         this.sendTransport = undefined;
-        res();
+        res(void 0);
       });
       this.sendTransport.close();
     });
@@ -143,94 +155,83 @@ class VoiceConnection {
         // just a temporary fix till vortex rewrite
       });
       this.device = Revoice.createDevice();
-      res();
+      res(void 0);
     });
   }
   destroy() {
     return new Promise(async (res) => {
       this.disconnect();
       if (this.media) await this.media.destroy();
-      res();
+      res(void 0);
     });
   }
   async leave() {
-    this.updateState(Revoice.State.OFFLINE);
+    this.updateState(RevoiceState.OFFLINE);
     await this.disconnect();
     if (this.media) this.media.disconnect();
     this.emit("leave");
   }
 }
 
-class Revoice {
+export default class Revoice {
   static createDevice() {
     return new Device({
       headerExtensions: {
-        audio: [
-          useSdesMid(),
-        ]
+        audio: [useSdesMid()],
       },
       codecs: {
         audio: [
           new RTCRtpCodecParameters({
             mimeType: "audio/opus",
             clockRate: 48000,
-            preferredPayloadType: 100,
-            channels: 2
-          })
-        ]
-      }
+            payloadType: 100,
+            channels: 2,
+          }),
+        ],
+      },
     });
-  }
-  static State =  {
-    OFFLINE: "off", // not joined anywhere
-    IDLE: "idle", // joined, but not playing
-    BUFFERING: "buffer", // joined, buffering data
-    PLAYING: "playing", // joined and playing
-    PAUSED: "paused", // joined and paused
-    JOINING: "joining", // join process active
-    UNKNOWN: "unknown" // online but a Media instance is used to play audio
   }
   static Error = {
     ALREADY_CONNECTED: "acon", // joining failed because already connected to a voice channel in this server
     NOT_A_VC: "novc", // joining failed because the bot is already connected to the channel
     VC_ERROR: "vce", // there was an error fetching data about the voice channel
-  }
-  constructor(token) {
-    this.api = new API({ authentication: { revolt: token }});
-    this.signals = new Map();
+  };
+
+  public api: API;
+  public signals = new Map();
+  public signaling: Signaling;
+  public eventemitter = new EventEmitter();
+  public transports = new Map();
+  public devices = new Map(); // list of devices by server id
+  public connected = []; // list of channels the bot is connected to
+  public connections = new Map();
+  public users = new Map();
+  public state = RevoiceState.OFFLINE;
+
+  constructor(token: string) {
+    this.api = new API({ authentication: { revolt: token } });
     this.signaling = new Signaling(this.api);
-
-    this.eventemitter = new EventEmitter();
-
-    this.transports = new Map();
-    this.devices = new Map(); // list of devices by server id
-    this.connected = []; // list of channels the bot is connected to
-    this.connections = new Map();
-
-    this.users = new Map();
-
-    this.state = Revoice.State.OFFLINE;
 
     return this;
   }
-  updateState(state) {
+  updateState(state: RevoiceState) {
     this.state = state;
     this.emit("state", state);
   }
-  on(event, cb) {
+  on(event: string, cb: any) {
     return this.eventemitter.on(event, cb);
   }
-  once(event, cb) {
+  once(event: string, cb: any) {
     return this.eventemitter.once(event, cb);
   }
-  emit(event, data) {
+  emit(event: string, data?: any) {
     return this.eventemitter.emit(event, data);
   }
   static uid() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   }
 
-  getUser(id) {
+  getUser(id: string) {
     if (!this.users.has(id)) return false; // no data about the user in cache
     const user = this.users.get(id);
     if (!user) return false;
@@ -238,41 +239,44 @@ class Revoice {
     const connection = this.connections.get(user.connectedTo);
     return { user, connection };
   }
-  knowsUser(id) { // might not be up-to-date because of leaving
+  knowsUser(id: string) {
+    // might not be up-to-date because of leaving
     return this.users.has(id);
   }
 
-  join(channelId, leaveIfEmpty=false) { // leaveIfEmpty == amount of seconds the bot will wait before leaving if the room is empty
+  join(channelId: string, leaveIfEmpty = false) {
+    // leaveIfEmpty == amount of seconds the bot will wait before leaving if the room is empty
     return new Promise((res, rej) => {
-      this.api.get("/channels/" + channelId).then(data => {
-        if (data.channel_type != "VoiceChannel") return rej(Revoice.Error.NOT_A_VC);
-        if (this.devices.has(channelId)) {
-          return rej(Revoice.Error.ALREADY_CONNECTED);
-        }
+      this.api
+        .get(`/channels/${channelId}`)
+        .then((data: Channel) => {
+          if (data.channel_type != "VoiceChannel") return rej(Revoice.Error.NOT_A_VC);
+          if (this.devices.has(channelId)) {
+            return rej(Revoice.Error.ALREADY_CONNECTED);
+          }
 
-        const signaling = new Signaling(this.api);
-        const device = Revoice.createDevice();
+          const signaling = new Signaling(this.api);
+          const device = Revoice.createDevice();
 
-        const connection = new VoiceConnection(channelId, this, {
-          signaling: signaling,
-          device: device,
-          leaveOnEmpty: leaveIfEmpty
+          const connection = new VoiceConnection(channelId, this, {
+            signaling: signaling,
+            device: device,
+            leaveOnEmpty: leaveIfEmpty,
+          });
+          connection.on("autoleave", () => {
+            this.connections.delete(channelId);
+          });
+          connection.updateState(RevoiceState.JOINING);
+          this.connections.set(channelId, connection);
+          res(connection);
+        })
+        .catch((e) => {
+          console.log(e);
+          rej(Revoice.Error.VC_ERROR);
         });
-        connection.on("autoleave", () => {
-          this.connections.delete(channelId);
-        });
-        connection.updateState(Revoice.State.JOINING);
-        this.connections.set(channelId, connection);
-        res(connection);
-      }).catch((e) => {
-        console.log(e);
-        rej(Revoice.Error.VC_ERROR);
-      });
     });
   }
-  getVoiceConnection(channelId) {
+  getVoiceConnection(channelId: string) {
     return this.connections.get(channelId);
   }
 }
-
-module.exports = Revoice;
