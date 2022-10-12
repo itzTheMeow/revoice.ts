@@ -1,11 +1,11 @@
 {
   "name": "revoice-ts",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Typescript typings for revolt.js",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "scripts": {
-    "prepublish": "tsc -b tsconfig.json"
+    "pub": "tsc -b tsconfig.json && npm publish"
   },
   "keywords": [
     "voice",
@@ -17,7 +17,7 @@
     "voice channels"
   ],
   "files": [
-    "dist"
+    "dist/*"
   ],
   "repository": {
     "type": "git",
