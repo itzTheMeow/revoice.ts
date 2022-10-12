@@ -4,7 +4,7 @@ import EventEmitter from "events";
 import { Device, useSdesMid, RTCRtpCodecParameters } from "msc-node";
 import { RtpCapabilities } from "msc-node/lib/RtpParameters";
 import { RevoiceState } from "./VortexTypes";
-import { Media } from "./Media";
+import { Media, MediaPlayer } from "./Media";
 import { Producer } from "msc-node/lib/Producer";
 import { Transport } from "msc-node/lib/Transport";
 import User from "./User";
@@ -15,7 +15,7 @@ export class VoiceConnection {
   public device: Device;
   public signaling: Signaling;
   public leaveTimeout: boolean;
-  public media = null;
+  public media: MediaPlayer;
   public state: RevoiceState;
   public producer: Producer;
   public leaving: NodeJS.Timeout;
@@ -28,7 +28,6 @@ export class VoiceConnection {
   ) {
     this.device = opts.device;
     this.signaling = opts.signaling;
-    this.leaveTimeout = opts.leaveOnEmpty;
     this.setupSignaling();
     this.signaling.connect(channelId);
 
@@ -128,7 +127,7 @@ export class VoiceConnection {
     this.updateState(RevoiceState.IDLE);
     this.emit("join");
   }
-  async play(media: Media) {
+  async play(media: MediaPlayer) {
     this.updateState(!media.isMediaPlayer ? RevoiceState.UNKNOWN : RevoiceState.BUFFERING);
 
     media.on("finish", () => {
@@ -147,7 +146,7 @@ export class VoiceConnection {
       this.updateState(RevoiceState.PAUSED);
     });
     this.media = media;
-    this.media.transport = this.sendTransport;
+    this.media.sendTransport = this.sendTransport;
     return this.producer;
   }
   closeTransport(): Promise<void> {
