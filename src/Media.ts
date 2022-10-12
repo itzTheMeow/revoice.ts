@@ -108,6 +108,7 @@ export class Media {
   }
 }
 
+type MediaPlayerEvents = "start" | "finish" | "pause" | "buffer";
 export class MediaPlayer extends Media {
   public emitter = new EventEmitter();
   public currTime = null;
@@ -142,13 +143,13 @@ export class MediaPlayer extends Media {
     this.isMediaPlayer = true;
     return this;
   }
-  on(event: string, cb: any) {
+  on(event: MediaPlayerEvents, cb: any) {
     return this.emitter.on(event, cb);
   }
-  once(event: string, cb: any) {
+  once(event: MediaPlayerEvents, cb: any) {
     return this.emitter.once(event, cb);
   }
-  emit(event: string, data?: any) {
+  emit(event: MediaPlayerEvents, data?: any) {
     return this.emitter.emit(event, data);
   }
 

@@ -9,6 +9,7 @@ import { Producer } from "msc-node/lib/Producer";
 import { Transport } from "msc-node/lib/Transport";
 import User from "./User";
 
+type VoiceConnectionEvents = "state" | "userjoin" | "userleave" | "leave" | "autoleave" | "join";
 export class VoiceConnection {
   public eventemitter = new EventEmitter();
   public device: Device;
@@ -30,13 +31,19 @@ export class VoiceConnection {
 
     this.leaveTimeout = opts.leaveOnEmpty;
   }
-  on(event: string, cb: any) {
+  on(event: "state", cb: (data: RevoiceState) => any): EventEmitter;
+  on(event: "userjoin", cb: (data: User) => any): EventEmitter;
+  on(event: "userleave", cb: (data: User) => any): EventEmitter;
+  on(event: "leave", cb: () => any): EventEmitter;
+  on(event: "autoleave", cb: () => any): EventEmitter;
+  on(event: "join", cb: () => any): EventEmitter;
+  on(event: VoiceConnectionEvents, cb: any) {
     return this.eventemitter.on(event, cb);
   }
-  once(event: string, cb: any) {
+  once(event: VoiceConnectionEvents, cb: any) {
     return this.eventemitter.once(event, cb);
   }
-  emit(event: string, data?: any) {
+  emit(event: VoiceConnectionEvents, data?: any) {
     return this.eventemitter.emit(event, data);
   }
 
@@ -219,13 +226,13 @@ export default class Revoice {
     this.state = state;
     this.emit("state", state);
   }
-  on(event: string, cb: any) {
+  on(event: "state", cb: (state: RevoiceState) => any): EventEmitter {
     return this.eventemitter.on(event, cb);
   }
-  once(event: string, cb: any) {
+  once(event: "state", cb: (state: RevoiceState) => any): EventEmitter {
     return this.eventemitter.once(event, cb);
   }
-  emit(event: string, data?: any) {
+  emit(event: "state", data: RevoiceState) {
     return this.eventemitter.emit(event, data);
   }
   static uid() {
