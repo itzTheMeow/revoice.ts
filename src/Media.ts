@@ -1,9 +1,9 @@
 import EventEmitter from "events";
-import fs, { ReadStream } from "fs";
+import fs from "fs";
 import ffmpeg from "ffmpeg-static";
 import { createSocket, Socket } from "dgram";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
-import { Stream } from "stream";
+import internal, { Stream } from "stream";
 import { Transport } from "msc-node/lib/Transport";
 import { Producer } from "msc-node/lib/Producer";
 import { MediaStreamTrack } from "werift";
@@ -118,7 +118,7 @@ export class MediaPlayer extends Media {
   public lastPacket = null;
   public paused = false;
   public streamFinished = false;
-  public originStream: ReadStream;
+  public originStream: internal.Readable;
   public sendTransport: Transport;
   public writing = false;
   public producer: Producer;
@@ -262,10 +262,10 @@ export class MediaPlayer extends Media {
     if (!this.track) this.track = new MediaStreamTrack({ kind: "audio" });
     return this.getMediaTrack();
   }
-  async playStream(stream: ReadStream) {
+  async playStream(stream: internal.Readable) {
     if (this.sendTransport)
       this.producer = await this.sendTransport.produce({
-        track: this.track as unknown as globalThis.MediaStreamTrack,
+        track: this.track as unknown as globalThis.MediaStreamTrack, // dunno whats up with this
         appData: { type: "audio" },
       });
     this.emit("buffer", this.producer);
