@@ -4,6 +4,10 @@ This is a direct port of Revoice.js
 
 The only feature added is a `customArgs` argument on the constructor for custom FFMPEG args.
 
+Not all internal typings are done, mostly because i dont know what they are supposed to be.
+
+`npm i revoice-ts` (cant do .ts because of imports)
+
 # Revoice.js - A Voice Module for Revolt
 
 This package is still in developement and lacks many features.

@@ -1,5 +1,5 @@
 {
-  "name": "revoice.ts",
+  "name": "revoice-ts",
   "version": "0.0.1",
   "description": "Typescript typings for revolt.js",
   "main": "dist/index.js",
