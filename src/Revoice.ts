@@ -7,6 +7,7 @@ import { RevoiceState } from "./VortexTypes";
 import { Media } from "./Media";
 import { Producer } from "msc-node/lib/Producer";
 import { Transport } from "msc-node/lib/Transport";
+import User from "./User";
 
 export class VoiceConnection {
   public eventemitter = new EventEmitter();
@@ -68,7 +69,7 @@ export class VoiceConnection {
         this.voice.users.set(user.id, user);
       });
     });
-    signaling.on("userjoin", (user) => {
+    signaling.on("userjoin", (user: User) => {
       this.voice.users.set(user.id, user);
       if (this.leaving) {
         clearTimeout(this.leaving);
@@ -76,10 +77,10 @@ export class VoiceConnection {
       }
       this.emit("userjoin", user);
     });
-    signaling.on("userleave", (user) => {
+    signaling.on("userleave", (user: User) => {
       const old = this.voice.users.get(user.id);
       old.connected = false;
-      old.connectedTo = null;
+      old.connectedTo = "";
       this.voice.users.set(user.id, old);
       this.initLeave();
       this.emit("userleave", user);
@@ -139,7 +140,7 @@ export class VoiceConnection {
     this.media.transport = this.sendTransport;
     return this.producer;
   }
-  closeTransport() {
+  closeTransport(): Promise<void> {
     return new Promise((res) => {
       this.sendTransport.once("close", () => {
         this.sendTransport = undefined;
@@ -148,7 +149,7 @@ export class VoiceConnection {
       this.sendTransport.close();
     });
   }
-  disconnect() {
+  disconnect(): Promise<void> {
     return new Promise((res) => {
       this.signaling.disconnect();
       this.closeTransport().then(() => {
@@ -158,7 +159,7 @@ export class VoiceConnection {
       res(void 0);
     });
   }
-  destroy() {
+  destroy(): Promise<void> {
     return new Promise(async (res) => {
       this.disconnect();
       if (this.media) await this.media.destroy();
@@ -201,11 +202,11 @@ export default class Revoice {
   public signals = new Map();
   public signaling: Signaling;
   public eventemitter = new EventEmitter();
-  public transports = new Map();
-  public devices = new Map(); // list of devices by server id
+  public transports = new Map<string, Transport>();
+  public devices = new Map<string, Device>(); // list of devices by server id
   public connected = []; // list of channels the bot is connected to
-  public connections = new Map();
-  public users = new Map();
+  public connections = new Map<string, VoiceConnection>();
+  public users = new Map<string, User>();
   public state = RevoiceState.OFFLINE;
 
   constructor(token: string) {
@@ -244,7 +245,7 @@ export default class Revoice {
     return this.users.has(id);
   }
 
-  join(channelId: string, leaveIfEmpty = false) {
+  join(channelId: string, leaveIfEmpty = false): Promise<VoiceConnection> {
     // leaveIfEmpty == amount of seconds the bot will wait before leaving if the room is empty
     return new Promise((res, rej) => {
       this.api

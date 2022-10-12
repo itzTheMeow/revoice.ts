@@ -3,7 +3,7 @@ import * as Revolt from "revolt-api";
 
 export default class User {
   public connected = true; // gets changed from outside
-  public connectedTo = null; // same as connected
+  public connectedTo = ""; // same as connected
   public emitter = new EventEmitter();
   public username: string;
   public badges: number;
