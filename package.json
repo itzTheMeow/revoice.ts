@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified. For tests see experimental branch.\" && exit 1"
+    "prepublish": "tsc -b tsconfig.json"
   },
   "keywords": [
     "voice",
