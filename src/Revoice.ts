@@ -26,6 +26,9 @@ export class VoiceConnection {
     public voice: Revoice,
     opts: { device: Device; signaling: Signaling; leaveOnEmpty: boolean }
   ) {
+    this.device = opts.device;
+    this.signaling = opts.signaling;
+    this.leaveTimeout = opts.leaveOnEmpty;
     this.setupSignaling();
     this.signaling.connect(channelId);
 
