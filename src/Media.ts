@@ -281,8 +281,8 @@ export class MediaPlayer extends Media {
 
     super.playStream(stream); // start playing
   }
-  async #ffmpegFinished() {
-    await this.sleep(1000); // prevent bug with no music after 3rd song
+  public async ffmpegFinished(sleep = true) {
+    if (sleep) await this.sleep(1000); // prevent bug with no music after 3rd song
     this.socket.send("FINISHPACKET", this.port);
     this.originStream.destroy();
     this.ffmpeg.kill();
@@ -295,7 +295,7 @@ export class MediaPlayer extends Media {
   #setupFmpeg() {
     this.ffmpeg.on("exit", async (_c, s) => {
       if (s == "SIGTERM") return; // killed intentionally
-      this.#ffmpegFinished();
+      this.ffmpegFinished();
     });
     this.ffmpeg.stdin.on("error", (e: Error) => {
       if ((e as any).code == "EPIPE") return;
