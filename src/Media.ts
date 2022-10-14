@@ -284,7 +284,7 @@ export class MediaPlayer extends Media {
   public async ffmpegFinished(sleep = true) {
     if (sleep) await this.sleep(1000); // prevent bug with no music after 3rd song
     this.socket.send("FINISHPACKET", this.port);
-    this.originStream.destroy();
+    this.originStream?.destroy();
     this.ffmpeg.kill();
     this.currTime = "00:00:00";
     this.ffmpeg = require("child_process").spawn(ffmpeg, [
