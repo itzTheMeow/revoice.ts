@@ -281,9 +281,9 @@ export class MediaPlayer extends Media {
 
     super.playStream(stream); // start playing
   }
-  public async ffmpegFinished(sleep = true) {
-    if (sleep) await this.sleep(1000); // prevent bug with no music after 3rd song
-    this.socket.send("FINISHPACKET", this.port);
+  public async ffmpegFinished(complete = true) {
+    if (complete) await this.sleep(1000); // prevent bug with no music after 3rd song
+    if (complete) this.socket.send("FINISHPACKET", this.port);
     this.originStream?.destroy();
     this.ffmpeg.kill();
     this.currTime = "00:00:00";
