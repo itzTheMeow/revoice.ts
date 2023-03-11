@@ -14,6 +14,7 @@ export default class Signaling {
   public ws: WebSocket;
 
   constructor(public client: API, public channelId?: string, public reconnectTimeout = 3000) {
+    this.eventemitter.setMaxListeners(Infinity);
     return this;
   }
   emit(event: string, cb?: any) {
