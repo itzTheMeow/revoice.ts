@@ -1,12 +1,17 @@
-# Revoice.ts - TypeScript typings for Revoice.js
+# THIS LIBRARY IS NO LONGER SUPPORTED
 
-This is a direct port of Revoice.js
+## Use [`revoice.js`](https://github.com/ShadowLp174/revoice.js) or [`@revkit/voice`](https://github.com/Revolt-Unofficial-Clients/revkit#revkitvoice) instead!
 
-The only feature added is a `customArgs` argument on the constructor for custom FFMPEG args.
 
-Not all internal typings are done, mostly because i dont know what they are supposed to be.
+# ~~Revoice.ts - TypeScript typings for Revoice.js~~
 
-`npm i revoice-ts` (cant do .ts because of imports)
+~~This is a direct port of Revoice.js~~
+
+~~The only feature added is a `customArgs` argument on the constructor for custom FFMPEG args.~~
+
+~~Not all internal typings are done, mostly because i dont know what they are supposed to be.~~
+
+~~`npm i revoice-ts` (cant do .ts because of imports)~~
 
 # Revoice.js - A Voice Module for Revolt
 
